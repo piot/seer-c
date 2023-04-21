@@ -1,0 +1,26 @@
+depsversion = "0.0.0"
+
+name = "piot/assent-c"
+version = "0.0.0"
+
+[[dependencies]]
+name = "piot/transmute-c"
+version = "*"
+
+[[dependencies]]
+name = "piot/nimble-steps-c"
+version = "*"
+
+[[dependencies]]
+name = "piot/nimble-steps-serialize-c"
+version = "*"
+
+
+[[dependencies]]
+name = "piot/imprint"
+version = "*"
+
+
+[[dependencies]]
+name = "piot/monotonic-time-c"
+version = "*"
