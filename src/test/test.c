@@ -113,7 +113,11 @@ UTEST(Assent, verify)
 
     StepId initialStepId = {101};
 
-    seerInit(&seer, transmuteVm, &imprint.slabAllocator.info.allocator, 100, 16);
+    Clog predictSubLog;
+    predictSubLog.constantPrefix = "seer";
+    predictSubLog.config = &g_clog;
+
+    seerInit(&seer, transmuteVm, &imprint.slabAllocator.info.allocator, 100, 16, predictSubLog);
 
     seerSetState(&seer, initialTransmuteState, initialStepId);
 
