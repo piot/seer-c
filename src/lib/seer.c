@@ -8,7 +8,7 @@
 #include <seer/seer.h>
 
 void seerInit(Seer* self, TransmuteVm transmuteVm, struct ImprintAllocator* allocator, size_t maxTicksPerRead,
-              size_t maxPlayers)
+              size_t maxPlayers, Clog log)
 {
     self->transmuteVm = transmuteVm;
     self->maxPlayerCount = maxPlayers;
@@ -18,6 +18,7 @@ void seerInit(Seer* self, TransmuteVm transmuteVm, struct ImprintAllocator* allo
     self->cachedTransmuteInput.participantCount = 0;
     self->readTempBufferSize = 512;
     self->readTempBuffer = IMPRINT_ALLOC_TYPE_COUNT(allocator, uint8_t, self->readTempBufferSize);
+    self->log = log;
 }
 
 void seerDestroy(Seer* self)
@@ -30,25 +31,38 @@ void seerSetState(Seer* self, TransmuteState state, StepId stepId)
     // Check that the stepId is greater than that has been set previously
     // Check if we have steps for this step in the buffer
     // Discard older steps
+    transmuteVmSetState(&self->transmuteVm, &state);
     seerPredictedStepsDiscardUpTo(&self->predictedSteps, stepId);
+    self->stepId = stepId;
 }
 
 int seerUpdate(Seer* self)
 {
-    StepId outStepId;
+    // We don't want to predict too far in the future, for several reasons
+    // The predictions have the risk of being so far from the actual truth, so the reconciliation with the authoritative
+    // state will look jarring and/or erroneous.
+    StepId maxPredictionTickId = self->stepId + self->maxPredictionTicksFromAuthoritative;
 
     for (size_t readCount = 0; readCount < self->maxTicksPerRead; ++readCount) {
-        int index = seerPredictedStepsGetIndex(&self->predictedSteps, outStepId);
+        if (self->stepId >= maxPredictionTickId) {
+            CLOG_C_NOTICE(&self->log,
+                          "we have predicted enough from the last authoritative state"
+                          "max: %04X actual: %04X",
+                          maxPredictionTickId, self->stepId)
+        }
+
+        int index = seerPredictedStepsGetIndex(&self->predictedSteps, self->stepId);
+
         int payloadOctetCount = self->predictedSteps.steps[index]
                                     .serializedInputOctetCount; //(steps, outStepId, self->readTempBuffer,
-                                                                //self->readTempBufferSize);
+                                                                // self->readTempBufferSize);
         if (payloadOctetCount <= 0) {
             break;
         }
         struct NimbleStepsOutSerializeLocalParticipants participants;
 
         nbsStepsInSerializeAuthoritativeStepHelper(&participants, self->readTempBuffer, payloadOctetCount);
-        CLOG_DEBUG("read authoritative step %016X  octetCount: %d", outStepId, payloadOctetCount);
+        CLOG_DEBUG("read authoritative step %016X  octetCount: %d", self->stepId, payloadOctetCount);
         for (size_t i = 0; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
             CLOG_DEBUG(" participant %d '%s' octetCount: %zu", participant->participantIndex, participant->payload,
@@ -67,6 +81,7 @@ int seerUpdate(Seer* self)
         }
 
         transmuteVmTick(&self->transmuteVm, &self->cachedTransmuteInput);
+        self->stepId++;
     }
 
     return 0;

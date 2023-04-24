@@ -21,11 +21,13 @@ typedef struct Seer {
     size_t readTempBufferSize;
     SeerPredictedSteps predictedSteps;
     TransmuteInput cachedTransmuteInput;
+    size_t maxPredictionTicksFromAuthoritative;
     StepId stepId;
+    Clog log;
 } Seer;
 
 void seerInit(Seer* self, TransmuteVm transmuteVm, struct ImprintAllocator* allocator, size_t maxInputOctetSize,
-              size_t maxPlayers);
+              size_t maxPlayers, Clog log);
 void seerDestroy(Seer* self);
 int seerUpdate(Seer* self);
 void seerSetState(Seer* self, TransmuteState state, StepId stepId);

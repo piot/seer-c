@@ -1,6 +1,6 @@
 depsversion = "0.0.0"
 
-name = "piot/assent-c"
+name = "piot/seer-c"
 version = "0.0.0"
 
 [[dependencies]]
