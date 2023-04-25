@@ -117,14 +117,16 @@ UTEST(Assent, verify)
     predictSubLog.constantPrefix = "seer";
     predictSubLog.config = &g_clog;
 
-    seerInit(&seer, transmuteVm, &imprint.slabAllocator.info.allocator, 100, 16, predictSubLog);
+    SeerSetup seerSetup;
+    seerSetup.allocator = &imprint.slabAllocator.info.allocator;
+    seerSetup.maxTicksFromAuthoritative = 10;
+    seerSetup.maxPlayers = 16;
+    seerSetup.maxInputOctetSize = 100;
+    seerSetup.log = predictSubLog;
+    seerSetup.maxTicksPerRead = 4;
 
-    seerSetState(&seer, initialTransmuteState, initialStepId);
+    seerInit(&seer, transmuteVm, seerSetup, initialTransmuteState, initialStepId);
 
-    NbsSteps stepBuffer;
-
-    nbsStepsInit(&stepBuffer, &imprint.slabAllocator.info.allocator, 7);
-    nbsStepsReInit(&stepBuffer, initialStepId);
     NimbleStepsOutSerializeLocalParticipants data;
     AppSpecificParticipantInput gameInput;
     gameInput.horizontalAxis = 24;
@@ -134,19 +136,21 @@ UTEST(Assent, verify)
     data.participants[0].payloadCount = sizeof(gameInput);
     data.participantCount = 1;
 
-    uint8_t stepBuf[64];
 
-    int octetLength = nbsStepsOutSerializeStep(&data, stepBuf, 64);
-    if (octetLength < 0) {
-        CLOG_ERROR("not working")
-    }
+    TransmuteInput transmuteInput;
+    TransmuteParticipantInput participantInputs[1];
+    participantInputs[0].input = &gameInput;
+    participantInputs[0].octetSize = sizeof(gameInput);
 
-    nbsStepsWrite(&stepBuffer, initialStepId, stepBuf, octetLength);
+    transmuteInput.participantInputs = participantInputs;
+    transmuteInput.participantCount = 1;
+
+    seerAddPredictedStep(&seer, &transmuteInput, initialStepId);
 
     ASSERT_EQ(0, appSpecificVm.appSpecificState.x);
     ASSERT_EQ(0, appSpecificVm.appSpecificState.time);
 
-    seerUpdate(&seer);
+    ASSERT_EQ(0, seerUpdate(&seer));
 
     StepId expectedStepId;
     TransmuteState currentState = seerGetState(&seer, &expectedStepId);

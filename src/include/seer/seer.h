@@ -5,7 +5,7 @@
 #ifndef SEER_H
 #define SEER_H
 
-#include <seer/predicted_steps.h>
+#include <nimble-steps/steps.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -19,18 +19,27 @@ typedef struct Seer {
     size_t maxTicksPerRead;
     uint8_t* readTempBuffer;
     size_t readTempBufferSize;
-    SeerPredictedSteps predictedSteps;
+    NbsSteps predictedSteps;
     TransmuteInput cachedTransmuteInput;
     size_t maxPredictionTicksFromAuthoritative;
     StepId stepId;
     Clog log;
 } Seer;
 
-void seerInit(Seer* self, TransmuteVm transmuteVm, struct ImprintAllocator* allocator, size_t maxInputOctetSize,
-              size_t maxPlayers, Clog log);
+typedef struct SeerSetup {
+    struct ImprintAllocator* allocator;
+    size_t maxInputOctetSize;
+    size_t maxTicksPerRead;
+    size_t maxPlayers;
+    size_t maxTicksFromAuthoritative;
+    Clog log;
+} SeerSetup;
+
+void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteState state, StepId stepId);
 void seerDestroy(Seer* self);
 int seerUpdate(Seer* self);
 void seerSetState(Seer* self, TransmuteState state, StepId stepId);
 TransmuteState seerGetState(const Seer* self, StepId* outStepId);
+int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId);
 
 #endif
