@@ -22,7 +22,7 @@ void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteSta
     nbsStepsReInit(&self->predictedSteps, stepId);
     transmuteVmSetState(&self->transmuteVm, &state);
     self->stepId = stepId;
-
+    self->maxPredictionTickId = self->stepId + self->maxPredictionTicksFromAuthoritative;
     self->log = setup.log;
 }
 
@@ -107,7 +107,7 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
     NimbleStepsOutSerializeLocalParticipants data;
 
     for (size_t i = 0; i < input->participantCount; ++i) {
-        data.participants[i].participantIndex = i;
+        data.participants[i].participantIndex =  input->participantInputs[i].participantId;
         data.participants[i].payload = input->participantInputs[i].input;
         data.participants[i].payloadCount = input->participantInputs[i].octetSize;
     }

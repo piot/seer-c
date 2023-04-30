@@ -121,9 +121,8 @@ UTEST(Assent, verify)
     seerSetup.allocator = &imprint.slabAllocator.info.allocator;
     seerSetup.maxTicksFromAuthoritative = 10;
     seerSetup.maxPlayers = 16;
-    seerSetup.maxInputOctetSize = 100;
+    seerSetup.maxStepOctetSizeForSingleParticipant = 12;
     seerSetup.log = predictSubLog;
-    seerSetup.maxTicksPerRead = 4;
 
     seerInit(&seer, transmuteVm, seerSetup, initialTransmuteState, initialStepId);
 
@@ -131,7 +130,7 @@ UTEST(Assent, verify)
     AppSpecificParticipantInput gameInput;
     gameInput.horizontalAxis = 24;
 
-    data.participants[0].participantIndex = 0;
+    data.participants[0].participantIndex = 1;
     data.participants[0].payload = (const uint8_t*) &gameInput;
     data.participants[0].payloadCount = sizeof(gameInput);
     data.participantCount = 1;
@@ -141,6 +140,7 @@ UTEST(Assent, verify)
     TransmuteParticipantInput participantInputs[1];
     participantInputs[0].input = &gameInput;
     participantInputs[0].octetSize = sizeof(gameInput);
+    participantInputs[0].participantId = 1;
 
     transmuteInput.participantInputs = participantInputs;
     transmuteInput.participantCount = 1;
