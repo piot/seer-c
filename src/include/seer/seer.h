@@ -16,20 +16,19 @@ struct ImprintAllocator;
 typedef struct Seer {
     TransmuteVm transmuteVm;
     size_t maxPlayerCount;
-    size_t maxTicksPerRead;
     uint8_t* readTempBuffer;
     size_t readTempBufferSize;
     NbsSteps predictedSteps;
     TransmuteInput cachedTransmuteInput;
     size_t maxPredictionTicksFromAuthoritative;
     StepId stepId;
+    StepId maxPredictionTickId;
     Clog log;
 } Seer;
 
 typedef struct SeerSetup {
     struct ImprintAllocator* allocator;
-    size_t maxInputOctetSize;
-    size_t maxTicksPerRead;
+    size_t maxStepOctetSizeForSingleParticipant;
     size_t maxPlayers;
     size_t maxTicksFromAuthoritative;
     Clog log;
@@ -41,5 +40,6 @@ int seerUpdate(Seer* self);
 void seerSetState(Seer* self, TransmuteState state, StepId stepId);
 TransmuteState seerGetState(const Seer* self, StepId* outStepId);
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId);
+int seerAddPredictedStepRaw(Seer* self, const uint8_t* combinedStep, size_t octetCount, StepId tickId);
 
 #endif
