@@ -50,7 +50,7 @@ int seerUpdate(Seer* self)
 
     while (1) {
         if (self->stepId >= self->maxPredictionTickId) {
-            CLOG_C_NOTICE(&self->log,
+            CLOG_C_VERBOSE(&self->log,
                           "we can not predict further from the last authoritative state. The prediction will be too costly to simulate or uncertainty will be too high"
                           "max: %04X actual: %04X maxDeltaTicks: %zu",
                           self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
