@@ -39,6 +39,7 @@ void seerDestroy(Seer* self);
 int seerUpdate(Seer* self);
 void seerSetState(Seer* self, TransmuteState state, StepId stepId);
 TransmuteState seerGetState(const Seer* self, StepId* outStepId);
+bool seerShouldAddPredictedStepThisTick(const Seer* self);
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId);
 int seerAddPredictedStepRaw(Seer* self, const uint8_t* combinedStep, size_t octetCount, StepId tickId);
 

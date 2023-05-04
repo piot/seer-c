@@ -37,9 +37,11 @@ void seerSetState(Seer* self, TransmuteState state, StepId stepId)
     // Check if we have steps for this step in the buffer
     // Discard older steps
     transmuteVmSetState(&self->transmuteVm, &state);
-    nbsStepsDiscardUpTo(&self->predictedSteps, stepId);
+    int discardedStepCount = nbsStepsDiscardUpTo(&self->predictedSteps, stepId);
+    CLOG_C_VERBOSE(&self->log, "at stepId: %08X discarded %d steps, predicted count is now: %zu", stepId, discardedStepCount, self->predictedSteps.stepsCount)
     self->stepId = stepId;
     self->maxPredictionTickId = self->stepId + self->maxPredictionTicksFromAuthoritative;
+
 }
 
 int seerUpdate(Seer* self)
@@ -75,7 +77,7 @@ int seerUpdate(Seer* self)
         CLOG_C_VERBOSE(&self->log, "read predicted step %016X octetCount: %d", self->stepId, payloadOctetCount);
         for (size_t i = 0; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
-            CLOG_C_VERBOSE(&self->log, " participant %d octetCount: %zu", participant->participantIndex, participant->payloadCount);
+            CLOG_C_VERBOSE(&self->log, " participant %d octetCount: %zu", participant->participantId, participant->payloadCount);
         }
 
         if (participants.participantCount > self->maxPlayerCount) {
@@ -85,6 +87,7 @@ int seerUpdate(Seer* self)
         self->cachedTransmuteInput.participantCount = participants.participantCount;
         for (size_t i = 0; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
+            self->cachedTransmuteInput.participantInputs[i].participantId = participant->participantId;
             self->cachedTransmuteInput.participantInputs[i].input = participant->payload;
             self->cachedTransmuteInput.participantInputs[i].octetSize = participant->payloadCount;
         }
@@ -102,12 +105,17 @@ TransmuteState seerGetState(const Seer* self, StepId* outStepId)
     return transmuteVmGetState(&self->transmuteVm);
 }
 
+bool seerShouldAddPredictedStepThisTick(const Seer* self)
+{
+    return (self->predictedSteps.stepsCount + 2 < self->maxPredictionTicksFromAuthoritative) &&  (self->stepId < self->maxPredictionTickId);
+}
+
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
 {
     NimbleStepsOutSerializeLocalParticipants data;
 
     for (size_t i = 0; i < input->participantCount; ++i) {
-        data.participants[i].participantIndex =  input->participantInputs[i].participantId;
+        data.participants[i].participantId = input->participantInputs[i].participantId;
         data.participants[i].payload = input->participantInputs[i].input;
         data.participants[i].payloadCount = input->participantInputs[i].octetSize;
     }
