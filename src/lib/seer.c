@@ -38,10 +38,10 @@ void seerSetState(Seer* self, TransmuteState state, StepId stepId)
     // Discard older steps
     transmuteVmSetState(&self->transmuteVm, &state);
     int discardedStepCount = nbsStepsDiscardUpTo(&self->predictedSteps, stepId);
-    CLOG_C_VERBOSE(&self->log, "at stepId: %08X discarded %d steps, predicted count is now: %zu", stepId, discardedStepCount, self->predictedSteps.stepsCount)
+    CLOG_C_VERBOSE(&self->log, "at stepId: %08X discarded %d steps, predicted count is now: %zu", stepId,
+                   discardedStepCount, self->predictedSteps.stepsCount)
     self->stepId = stepId;
     self->maxPredictionTickId = self->stepId + self->maxPredictionTicksFromAuthoritative;
-
 }
 
 int seerUpdate(Seer* self)
@@ -50,12 +50,13 @@ int seerUpdate(Seer* self)
     // The predictions have the risk of being so far from the actual truth, so the reconciliation with the authoritative
     // state will look jarring and/or erroneous.
 
-    while (1) {
+    while (true) {
         if (self->stepId >= self->maxPredictionTickId) {
-            CLOG_C_VERBOSE(&self->log,
-                          "we can not predict further from the last authoritative state. The prediction will be too costly to simulate or uncertainty will be too high"
-                          "max: %04X actual: %04X maxDeltaTicks: %zu",
-                          self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
+            // CLOG_C_INFO(&self->log,
+            //           "we can not predict further from the last authoritative state. The prediction will be too "
+            //         "costly to simulate or uncertainty will be too high"
+            //       "max: %04X actual: %04X maxDeltaTicks: %zu",
+            //     self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
             return 1;
         }
 
@@ -68,6 +69,7 @@ int seerUpdate(Seer* self)
         int payloadOctetCount = nbsStepsReadAtIndex(&self->predictedSteps, infoIndex, self->readTempBuffer,
                                                     self->readTempBufferSize);
         if (payloadOctetCount <= 0) {
+            CLOG_C_SOFT_ERROR(&self->log, "can not read index")
             return payloadOctetCount;
         }
 
@@ -77,7 +79,8 @@ int seerUpdate(Seer* self)
         CLOG_C_VERBOSE(&self->log, "read predicted step %016X octetCount: %d", self->stepId, payloadOctetCount);
         for (size_t i = 0; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
-            CLOG_C_VERBOSE(&self->log, " participant %d octetCount: %zu", participant->participantId, participant->payloadCount);
+            CLOG_C_VERBOSE(&self->log, " participant %d octetCount: %zu", participant->participantId,
+                           participant->payloadCount);
         }
 
         if (participants.participantCount > self->maxPlayerCount) {
@@ -85,12 +88,13 @@ int seerUpdate(Seer* self)
             return -99;
         }
         self->cachedTransmuteInput.participantCount = participants.participantCount;
-        for (size_t i = 0; i < participants.participantCount; ++i) {
+        for (size_t i = 0U; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
             self->cachedTransmuteInput.participantInputs[i].participantId = participant->participantId;
             self->cachedTransmuteInput.participantInputs[i].input = participant->payload;
             self->cachedTransmuteInput.participantInputs[i].octetSize = participant->payloadCount;
         }
+        // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
         transmuteVmTick(&self->transmuteVm, &self->cachedTransmuteInput);
         self->stepId++;
@@ -107,7 +111,8 @@ TransmuteState seerGetState(const Seer* self, StepId* outStepId)
 
 bool seerShouldAddPredictedStepThisTick(const Seer* self)
 {
-    return (self->predictedSteps.stepsCount + 2 < self->maxPredictionTicksFromAuthoritative) &&  (self->stepId < self->maxPredictionTickId);
+    return (self->predictedSteps.stepsCount + 2 < self->maxPredictionTicksFromAuthoritative) &&
+           (self->stepId < self->maxPredictionTickId);
 }
 
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
