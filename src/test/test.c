@@ -130,7 +130,7 @@ UTEST(Assent, verify)
     AppSpecificParticipantInput gameInput;
     gameInput.horizontalAxis = 24;
 
-    data.participants[0].participantIndex = 1;
+    data.participants[0].participantId = 1;
     data.participants[0].payload = (const uint8_t*) &gameInput;
     data.participants[0].payloadCount = sizeof(gameInput);
     data.participantCount = 1;
