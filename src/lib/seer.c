@@ -75,7 +75,7 @@ int seerUpdate(Seer* self)
 
         struct NimbleStepsOutSerializeLocalParticipants participants;
 
-        nbsStepsInSerializeAuthoritativeStepHelper(&participants, self->readTempBuffer, payloadOctetCount);
+        nbsStepsInSerializeStepsForParticipantsFromOctets(&participants, self->readTempBuffer, payloadOctetCount);
         CLOG_C_VERBOSE(&self->log, "read predicted step %016X octetCount: %d", self->stepId, payloadOctetCount);
         for (size_t i = 0; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
