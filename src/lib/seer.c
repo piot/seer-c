@@ -6,7 +6,6 @@
 #include <imprint/allocator.h>
 #include <nimble-steps-serialize/in_serialize.h>
 #include <seer/seer.h>
-#include <inttypes.h>
 
 void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteState state, StepId stepId)
 {
