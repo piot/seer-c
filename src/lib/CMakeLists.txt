@@ -125,7 +125,7 @@ else()
 endif()
 
 
-target_link_libraries(seer PUBLIC transmute PUBLIC nimble-steps PUBLIC nimble-steps-serialize PUBLIC imprint PUBLIC monotonic-time)
+target_link_libraries(seer PUBLIC transmute PUBLIC nimble-steps-serialize PUBLIC monotonic-time)
 
 
 if(useSanitizers)

@@ -8,15 +8,7 @@ name = "piot/transmute-c"
 version = "*"
 
 [[dependencies]]
-name = "piot/nimble-steps-c"
-version = "*"
-
-[[dependencies]]
 name = "piot/nimble-steps-serialize-c"
-version = "*"
-
-[[dependencies]]
-name = "piot/imprint"
 version = "*"
 
 [[dependencies]]
