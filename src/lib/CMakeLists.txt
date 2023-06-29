@@ -1,46 +1,142 @@
-cmake_minimum_required(VERSION 3.17)
-project(seer C)
+cmake_minimum_required(VERSION 3.16.3)
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_FLAGS "-std=c99")
+set(CMAKE_C_EXTENSIONS false)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(isDebug TRUE)
+
+# --- Detect CMake build type, compiler and operating system ---
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message("detected debug build")
+  set(isDebug TRUE)
 else()
-    message("no debug")
-    set(isDebug FALSE)
+  message("detected release build")
+  set(isDebug FALSE)
 endif()
 
 
-if (isDebug)
-    message("Debug build detected")
-    add_compile_definitions(CONFIGURATION_DEBUG TYRAN_CONFIGURATION_DEBUG)
-    set(CONFIGURATION_DEBUG 1)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  set(COMPILER_NAME "clang")
+  set(COMPILER_CLANG 1)
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  set(COMPILER_NAME "gcc")
+  set(COMPILER_GCC 1)
+elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+  set(COMPILER_NAME "msvc")
+  set(COMPILER_MSVC 1)
+endif()
+
+message("detected compiler: '${CMAKE_C_COMPILER_ID}' (${COMPILER_NAME})")
+
+set(useSanitizers false)
+
+if(useSanitizers)
+  message("using sanitizers")
+  set(sanitizers "-fsanitize=address")
 endif()
 
 
-set(DEPS ../../deps/)
+# --- Library ---
 
-file(GLOB lib_src FOLLOW_SYMLINKS
-        "*.c"
-        )
 
-add_library(seer STATIC
-    ${lib_src}
-)
+file(GLOB lib_src FOLLOW_SYMLINKS "./*.c")
 
-target_compile_options(seer PRIVATE -Wall -Wextra -Wshadow -Wstrict-aliasing -ansi -pedantic -Wno-declaration-after-statement -Wno-extra-semi-stmt -Wno-undef -Wno-unused-variable -Wno-unused-parameter -Wno-padded -Werror=implicit-function-declaration -Werror=incompatible-pointer-types  -Werror=missing-prototypes -Werror=int-conversion -Werror=return-type -Werror=incompatible-function-pointer-types) # -Werror=incompatible-pointer-types-discards-qualifiers
-if (COMPILER_CLANG)
-target_compile_options(seer PRIVATE -Wmost -Weverything -Werror=missing-variable-declarations)
+
+add_library(seer STATIC ${lib_src})
+
+
+if(APPLE)
+  target_compile_definitions(seer PRIVATE TORNADO_OS_MACOS)
+  set(OS_MACOS 1)
+elseif(UNIX)
+  target_compile_definitions(seer PRIVATE TORNADO_OS_LINUX)
+  set(OS_LINUX 1)
+elseif(WIN32)
+  target_compile_definitions(seer PRIVATE TORNADO_OS_WINDOWS)
+  set(OS_WINDOWS 1)
+
 endif()
 
-target_include_directories(seer PUBLIC ${DEPS}piot/transmute-c/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/nimble-steps-c/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/nimble-steps-serialize-c/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/discoid-c/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/clog/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/tiny-libc/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/imprint/src/include)
-target_include_directories(seer PUBLIC ${DEPS}piot/monotonic-time-c/src/include)
+if(isDebug)
+  message("Setting definitions based on debug")
+  target_compile_definitions(seer PRIVATE CONFIGURATION_DEBUG)
+endif()
+
+
+function(unixlike)
+endfunction()
+
+if(OS_LINUX)
+  message("Linux Detected!")
+  unixlike()
+
+elseif(OS_MACOS)
+  message("MacOS detected!")
+  unixlike()
+endif()
+
 target_include_directories(seer PUBLIC ../include)
 
+if(COMPILER_CLANG)
+  target_compile_options(
+    seer
+    PRIVATE -Weverything
+            -Werror
+            -Wno-padded # the order of the fields in struct can matter (ABI)
+            -Wno-declaration-after-statement # must be bug in clang? shows up
+                                             # even if std=c99
+            -Wno-unsafe-buffer-usage # unclear why it fails on clang-16
+            -Wno-unknown-warning-option # support newer clang versions, e.g. clang-16
+            ${sanitizers})
+elseif(COMPILER_GCC)
+target_compile_options(
+    seer
+    PRIVATE -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -Wno-padded # the order of the fields in struct can matter (ABI)
+            ${sanitizers})
+elseif(COMPILER_MSVC)
+  target_compile_options(
+    seer
+    PRIVATE /F
+            5000000
+            /Wall
+            /wd4668
+            /wd4820
+            /wd4100
+            /wd4710
+            /wd4711
+            /wd5945
+            /wd5105
+            /wd5045
+            /we4047
+            /we4255
+            /we4013
+            /we4020
+            /we4474
+            /we4477
+            /we4057
+            /we4101
+            /we4189) # /WX
+else()
+  target_compile_options(seer PRIVATE -Wall)
+endif()
+
+
+target_link_libraries(seer PUBLIC transmute PUBLIC nimble-steps PUBLIC nimble-steps-serialize PUBLIC imprint PUBLIC monotonic-time)
+
+
+if(useSanitizers)
+  target_link_libraries(seer PRIVATE ${sanitizers})
+endif()
+
+if(NOT isDebug)
+  message("optimize!")
+  target_compile_options(seer PRIVATE -O3)
+endif()
+
+if (NOT MSVC)
+target_link_libraries(seer PRIVATE m)
+endif()
