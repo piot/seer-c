@@ -14,3 +14,4 @@ Makefile
 *.cmake
 CMakeCache.txt
 src/test/seer_test
+src/temp.zip
