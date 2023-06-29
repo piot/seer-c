@@ -6,6 +6,7 @@
 #include <imprint/allocator.h>
 #include <nimble-steps-serialize/in_serialize.h>
 #include <seer/seer.h>
+#include <inttypes.h>
 
 void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteState state, StepId stepId)
 {
@@ -84,7 +85,7 @@ int seerUpdate(Seer* self)
         }
 
         if (participants.participantCount > self->maxPlayerCount) {
-            CLOG_C_SOFT_ERROR(&self->log, "Too many participants %zu", participants.participantCount);
+            CLOG_C_SOFT_ERROR(&self->log, "Too many participants %zu", participants.participantCount)
             return -99;
         }
         self->cachedTransmuteInput.participantCount = participants.participantCount;
