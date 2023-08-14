@@ -37,9 +37,13 @@ void seerSetState(Seer* self, TransmuteState state, StepId stepId)
     // Check if we have steps for this step in the buffer
     // Discard older steps
     transmuteVmSetState(&self->transmuteVm, &state);
-    CLOG_EXECUTE(int discardedStepCount = nbsStepsDiscardUpTo(&self->predictedSteps, stepId);)
+    int discardedStepCount = nbsStepsDiscardUpTo(&self->predictedSteps, stepId);
+#if defined CLOG_LOG_ENABLED
     CLOG_C_VERBOSE(&self->log, "at stepId: %08X discarded %d steps, predicted count is now: %zu", stepId,
                    discardedStepCount, self->predictedSteps.stepsCount)
+#else
+    (void) discardedStepCount;
+#endif
     self->stepId = stepId;
     self->maxPredictionTickId = (StepId) (self->stepId + self->maxPredictionTicksFromAuthoritative);
 }
@@ -75,7 +79,8 @@ int seerUpdate(Seer* self)
 
         struct NimbleStepsOutSerializeLocalParticipants participants;
 
-        nbsStepsInSerializeStepsForParticipantsFromOctets(&participants, self->readTempBuffer, (size_t) payloadOctetCount);
+        nbsStepsInSerializeStepsForParticipantsFromOctets(&participants, self->readTempBuffer,
+                                                          (size_t) payloadOctetCount);
         CLOG_C_VERBOSE(&self->log, "read predicted step %08X octetCount: %d", self->stepId, payloadOctetCount)
         for (size_t i = 0; i < participants.participantCount; ++i) {
             CLOG_EXECUTE(NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];)
@@ -128,7 +133,7 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
     ssize_t octetCount = nbsStepsOutSerializeStep(&data, self->readTempBuffer, self->readTempBufferSize);
     if (octetCount < 0) {
         CLOG_ERROR("seerAddPredictedSteps: could not serialize")
-        //return octetCount;
+        // return octetCount;
     }
 
     return seerAddPredictedStepRaw(self, self->readTempBuffer, (size_t) octetCount, tickId);
