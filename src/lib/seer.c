@@ -118,6 +118,18 @@ bool seerShouldAddPredictedStepThisTick(const Seer* self)
            (self->stepId < self->maxPredictionTickId);
 }
 
+static NimbleSerializeParticipantConnectState toConnectState(TransmuteParticipantInputType inputType)
+{
+    switch (inputType) {
+        case TransmuteParticipantInputTypeNormal:
+            return NimbleSerializeParticipantConnectStateNormal;
+        case TransmuteParticipantInputTypeNoInputInTime:
+            return NimbleSerializeParticipantConnectStateStepNotProvidedInTime;
+        case TransmuteParticipantInputTypeWaitingForReconnect:
+            return NimbleSerializeParticipantConnectStateStepWaitingForReconnect;
+    }
+}
+
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
 {
     NimbleStepsOutSerializeLocalParticipants data;
@@ -126,6 +138,7 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
         data.participants[i].participantId = input->participantInputs[i].participantId;
         data.participants[i].payload = input->participantInputs[i].input;
         data.participants[i].payloadCount = input->participantInputs[i].octetSize;
+        data.participants[i].connectState = toConnectState(input->participantInputs[i].inputType);
     }
 
     data.participantCount = input->participantCount;
