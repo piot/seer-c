@@ -7,7 +7,7 @@
 #include <nimble-steps-serialize/in_serialize.h>
 #include <seer/seer.h>
 
-void seerInit(Seer* self, const SeerCallbackObject* callbackObject, SeerSetup setup, StepId stepId)
+void seerInit(Seer* self, const SeerCallbackObject callbackObject, SeerSetup setup, StepId stepId)
 {
     self->callbackObject = callbackObject;
     self->maxPlayerCount = setup.maxPlayers;
@@ -24,7 +24,7 @@ void seerInit(Seer* self, const SeerCallbackObject* callbackObject, SeerSetup se
     self->maxPredictionTickId = (StepId) (self->stepId + self->maxPredictionTicksFromAuthoritative);
     self->log = setup.log;
 
-    self->callbackObject->vtbl->copyFromAuthoritativeFn(self->callbackObject->self, stepId);
+    self->callbackObject.vtbl->copyFromAuthoritativeFn(self->callbackObject.self, stepId);
 }
 
 void seerDestroy(Seer* self)
@@ -51,7 +51,7 @@ void seerAuthoritativeGotNewState(Seer* self, StepId stepId)
 #if defined CLOG_LOG_ENABLED
     CLOG_C_VERBOSE(&self->log, "callback: copyFromAuthoritativeFn")
 #endif
-    self->callbackObject->vtbl->copyFromAuthoritativeFn(self->callbackObject->self, stepId);
+    self->callbackObject.vtbl->copyFromAuthoritativeFn(self->callbackObject.self, stepId);
 }
 
 int seerUpdate(Seer* self)
@@ -68,14 +68,14 @@ int seerUpdate(Seer* self)
             //       "max: %04X actual: %04X maxDeltaTicks: %zu",
             //     self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
 
-            self->callbackObject->vtbl->postPredictionTicksFn(self->callbackObject->self);
+            self->callbackObject.vtbl->postPredictionTicksFn(self->callbackObject.self);
             return 1;
         }
 
         int infoIndex = nbsStepsGetIndexForStep(&self->predictedSteps, self->stepId);
         if (infoIndex < 0) {
             CLOG_C_VERBOSE(&self->log, "stop predicting, since we don't have a predicted input for step %04X", self->stepId)
-            self->callbackObject->vtbl->postPredictionTicksFn(self->callbackObject->self);
+            self->callbackObject.vtbl->postPredictionTicksFn(self->callbackObject.self);
             return 0;
         }
 
@@ -111,7 +111,7 @@ int seerUpdate(Seer* self)
         }
         // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
-        self->callbackObject->vtbl->predictionTickFn(self->callbackObject->self, &self->cachedTransmuteInput);
+        self->callbackObject.vtbl->predictionTickFn(self->callbackObject.self, &self->cachedTransmuteInput);
         self->stepId++;
     }
 }

@@ -162,7 +162,7 @@ UTEST(Assent, verify)
 
     SeerCallbackObject callbackObject = {.vtbl = &vtbl, .self = &appSpecificCallback};
 
-    seerInit(&seer, &callbackObject, seerSetup, initialStepId);
+    seerInit(&seer, callbackObject, seerSetup, initialStepId);
 
     NimbleStepsOutSerializeLocalParticipants data;
     AppSpecificParticipantInput gameInput;

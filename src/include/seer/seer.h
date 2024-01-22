@@ -29,7 +29,7 @@ typedef struct SeerCallbackObject {
 } SeerCallbackObject;
 
 typedef struct Seer {
-    const SeerCallbackObject* callbackObject;
+    SeerCallbackObject callbackObject;
     size_t maxPlayerCount;
     uint8_t* readTempBuffer;
     size_t readTempBufferSize;
@@ -42,14 +42,14 @@ typedef struct Seer {
 } Seer;
 
 typedef struct SeerSetup {
-    ImprintAllocator* allocator;
+    struct ImprintAllocator* allocator;
     size_t maxStepOctetSizeForSingleParticipant;
     size_t maxPlayers;
     size_t maxTicksFromAuthoritative;
     Clog log;
 } SeerSetup;
 
-void seerInit(Seer* self, const SeerCallbackObject* callbackObject, SeerSetup setup, StepId stepId);
+void seerInit(Seer* self, SeerCallbackObject callbackObject, SeerSetup setup, StepId stepId);
 void seerDestroy(Seer* self);
 int seerUpdate(Seer* self);
 void seerAuthoritativeGotNewState(Seer* self, StepId stepId);
