@@ -23,6 +23,11 @@ typedef struct AppSpecificVm {
     AppSpecificState appSpecificState;
 } AppSpecificVm;
 
+typedef struct AppSpecificCallback {
+    TransmuteVm* transmuteVm;
+    TransmuteState* mockAuthoritativeState;
+} AppSpecificCallback;
+
 void appSpecificTick(void* _self, const TransmuteInput* input)
 {
     AppSpecificVm* self = (AppSpecificVm*) _self;
@@ -78,6 +83,26 @@ int appSpecificInputToString(void* _self, const TransmuteParticipantInput* input
     return tc_snprintf(target, maxTargetOctetSize, "input: horizontalAxis: %d", participantInput->horizontalAxis);
 }
 
+void appSpecificSeerCopyFromAuthoritative(void* _self, StepId stepId)
+{
+    AppSpecificCallback* self = (AppSpecificCallback*) _self;
+    CLOG_INFO("prediction: copy from authoritative %u", stepId)
+    transmuteVmSetState(self->transmuteVm, self->mockAuthoritativeState);
+}
+
+void appSpecificSeerPredictTick(void* _self, const TransmuteInput* input)
+{
+    AppSpecificCallback* self = (AppSpecificCallback*) _self;
+    CLOG_INFO("prediction: tick()")
+    transmuteVmTick(self->transmuteVm, input);
+}
+
+void appSpecificSeerPostTicks(void* _self)
+{
+    AppSpecificCallback* self = (AppSpecificCallback*) _self;
+    CLOG_INFO("prediction: ticks are done()")
+}
+
 UTEST(Assent, verify)
 {
     ImprintDefaultSetup imprint;
@@ -96,6 +121,8 @@ UTEST(Assent, verify)
     setup.inputToString = appSpecificInputToString;
     setup.stateToString = appSpecificStateToString;
 
+    AppSpecificCallback appSpecificCallback;
+
     Clog subLog;
 
     subLog.config = &g_clog;
@@ -111,6 +138,9 @@ UTEST(Assent, verify)
     initialTransmuteState.state = &initialAppState;
     initialTransmuteState.octetSize = sizeof(initialAppState);
 
+    appSpecificCallback.transmuteVm = &transmuteVm;
+    appSpecificCallback.mockAuthoritativeState = &initialTransmuteState;
+
     StepId initialStepId = {101};
 
     Clog predictSubLog;
@@ -124,7 +154,15 @@ UTEST(Assent, verify)
     seerSetup.maxStepOctetSizeForSingleParticipant = 12;
     seerSetup.log = predictSubLog;
 
-    seerInit(&seer, transmuteVm, seerSetup, initialTransmuteState, initialStepId);
+    SeerCallbackObjectVtbl vtbl = {
+        .predictionTickFn = appSpecificSeerPredictTick,
+        .copyFromAuthoritativeFn = appSpecificSeerCopyFromAuthoritative,
+        .postPredictionTicksFn = appSpecificSeerPostTicks,
+    };
+
+    SeerCallbackObject callbackObject = {.vtbl = &vtbl, .self = &appSpecificCallback};
+
+    seerInit(&seer, &callbackObject, seerSetup, initialStepId);
 
     NimbleStepsOutSerializeLocalParticipants data;
     AppSpecificParticipantInput gameInput;
@@ -135,12 +173,12 @@ UTEST(Assent, verify)
     data.participants[0].payloadCount = sizeof(gameInput);
     data.participantCount = 1;
 
-
     TransmuteInput transmuteInput;
     TransmuteParticipantInput participantInputs[1];
     participantInputs[0].input = &gameInput;
     participantInputs[0].octetSize = sizeof(gameInput);
     participantInputs[0].participantId = 1;
+    participantInputs[0].inputType = TransmuteParticipantInputTypeNormal;
 
     transmuteInput.participantInputs = participantInputs;
     transmuteInput.participantCount = 1;
@@ -152,11 +190,9 @@ UTEST(Assent, verify)
 
     ASSERT_EQ(0, seerUpdate(&seer));
 
-    StepId expectedStepId;
-    TransmuteState currentState = seerGetState(&seer, &expectedStepId);
-    const AppSpecificState* currentAppState = (const AppSpecificState*) currentState.state;
+    const AppSpecificState* currentAppState = &appSpecificVm.appSpecificState;
 
-    ASSERT_EQ(initialStepId + 1, expectedStepId);
+    ASSERT_EQ(initialStepId + 1, seer.stepId);
     ASSERT_EQ(1, currentAppState->x);
     ASSERT_EQ(1, currentAppState->time);
 }

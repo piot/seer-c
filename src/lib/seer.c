@@ -7,9 +7,9 @@
 #include <nimble-steps-serialize/in_serialize.h>
 #include <seer/seer.h>
 
-void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteState state, StepId stepId)
+void seerInit(Seer* self, const SeerCallbackObject* callbackObject, SeerSetup setup, StepId stepId)
 {
-    self->transmuteVm = transmuteVm;
+    self->callbackObject = callbackObject;
     self->maxPlayerCount = setup.maxPlayers;
     self->cachedTransmuteInput.participantInputs = IMPRINT_ALLOC_TYPE_COUNT(setup.allocator, TransmuteParticipantInput,
                                                                             setup.maxPlayers);
@@ -20,23 +20,24 @@ void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteSta
     nbsStepsInit(&self->predictedSteps, setup.allocator, setup.maxStepOctetSizeForSingleParticipant * setup.maxPlayers,
                  setup.log);
     nbsStepsReInit(&self->predictedSteps, stepId);
-    transmuteVmSetState(&self->transmuteVm, &state);
     self->stepId = stepId;
     self->maxPredictionTickId = (StepId) (self->stepId + self->maxPredictionTicksFromAuthoritative);
     self->log = setup.log;
+
+    self->callbackObject->vtbl->copyFromAuthoritativeFn(self->callbackObject->self, stepId);
 }
 
 void seerDestroy(Seer* self)
 {
-    self->transmuteVm.vmPointer = 0;
+    (void) self;
 }
 
-void seerSetState(Seer* self, TransmuteState state, StepId stepId)
+void seerAuthoritativeGotNewState(Seer* self, StepId stepId)
 {
     // Check that the stepId is greater than that has been set previously
     // Check if we have steps for this step in the buffer
     // Discard older steps
-    transmuteVmSetState(&self->transmuteVm, &state);
+
     int discardedStepCount = nbsStepsDiscardUpTo(&self->predictedSteps, stepId);
 #if defined CLOG_LOG_ENABLED
     CLOG_C_VERBOSE(&self->log, "at stepId: %08X discarded %d steps, predicted count is now: %zu", stepId,
@@ -46,6 +47,11 @@ void seerSetState(Seer* self, TransmuteState state, StepId stepId)
 #endif
     self->stepId = stepId;
     self->maxPredictionTickId = (StepId) (self->stepId + self->maxPredictionTicksFromAuthoritative);
+
+#if defined CLOG_LOG_ENABLED
+    CLOG_C_VERBOSE(&self->log, "callback: copyFromAuthoritativeFn")
+#endif
+    self->callbackObject->vtbl->copyFromAuthoritativeFn(self->callbackObject->self, stepId);
 }
 
 int seerUpdate(Seer* self)
@@ -61,12 +67,15 @@ int seerUpdate(Seer* self)
             //         "costly to simulate or uncertainty will be too high"
             //       "max: %04X actual: %04X maxDeltaTicks: %zu",
             //     self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
+
+            self->callbackObject->vtbl->postPredictionTicksFn(self->callbackObject->self);
             return 1;
         }
 
         int infoIndex = nbsStepsGetIndexForStep(&self->predictedSteps, self->stepId);
         if (infoIndex < 0) {
-            CLOG_C_VERBOSE(&self->log, "we don't have a predicted input for step %04X", self->stepId)
+            CLOG_C_VERBOSE(&self->log, "stop predicting, since we don't have a predicted input for step %04X", self->stepId)
+            self->callbackObject->vtbl->postPredictionTicksFn(self->callbackObject->self);
             return 0;
         }
 
@@ -77,7 +86,7 @@ int seerUpdate(Seer* self)
             return payloadOctetCount;
         }
 
-        struct NimbleStepsOutSerializeLocalParticipants participants;
+        NimbleStepsOutSerializeLocalParticipants participants;
 
         nbsStepsInSerializeStepsForParticipantsFromOctets(&participants, self->readTempBuffer,
                                                           (size_t) payloadOctetCount);
@@ -98,18 +107,13 @@ int seerUpdate(Seer* self)
             self->cachedTransmuteInput.participantInputs[i].participantId = participant->participantId;
             self->cachedTransmuteInput.participantInputs[i].input = participant->payload;
             self->cachedTransmuteInput.participantInputs[i].octetSize = participant->payloadCount;
+            self->cachedTransmuteInput.participantInputs[i].inputType = TransmuteParticipantInputTypeNormal;
         }
         // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
-        transmuteVmTick(&self->transmuteVm, &self->cachedTransmuteInput);
+        self->callbackObject->vtbl->predictionTickFn(self->callbackObject->self, &self->cachedTransmuteInput);
         self->stepId++;
     }
-}
-
-TransmuteState seerGetState(const Seer* self, StepId* outStepId)
-{
-    *outStepId = self->stepId;
-    return transmuteVmGetState(&self->transmuteVm);
 }
 
 bool seerShouldAddPredictedStepThisTick(const Seer* self)
@@ -135,6 +139,10 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
     NimbleStepsOutSerializeLocalParticipants data;
 
     for (size_t i = 0; i < input->participantCount; ++i) {
+        if (input->participantInputs[i].input == 0 || input->participantInputs[i].octetSize == 0) {
+            CLOG_C_ERROR(&self->log, "illegal payload for predicted input")
+            // return -2;
+        }
         data.participants[i].participantId = input->participantInputs[i].participantId;
         data.participants[i].payload = input->participantInputs[i].input;
         data.participants[i].payloadCount = input->participantInputs[i].octetSize;

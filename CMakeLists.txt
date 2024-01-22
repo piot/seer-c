@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3)
 project(seer C)
+enable_testing()
 
 add_subdirectory(deps/piot/clog/src/lib)
 add_subdirectory(deps/piot/discoid-c/src/lib)

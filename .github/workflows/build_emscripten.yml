@@ -40,6 +40,6 @@ jobs:
 
       - uses: actions/upload-artifact@v3.1.2
         with:
-          name: Hazy Emscripten Library
+          name: Seer Emscripten Library
           path: |
-            src/lib/libhazy.a
+            src/lib/libseer.a

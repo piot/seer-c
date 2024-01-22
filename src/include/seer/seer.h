@@ -13,8 +13,23 @@
 
 struct ImprintAllocator;
 
+typedef void (*SeerPredictionCopyFromAuthoritativeFn)(void* self, StepId tickId);
+typedef void (*SeerPredictionTickFn)(void* self, const TransmuteInput* input);
+typedef void (*SeerPredictionPostPredictionTicksFn)(void* self);
+
+typedef struct SeerCallbackObjectVtbl {
+    SeerPredictionCopyFromAuthoritativeFn copyFromAuthoritativeFn;
+    SeerPredictionTickFn predictionTickFn;
+    SeerPredictionPostPredictionTicksFn postPredictionTicksFn;
+} SeerCallbackObjectVtbl;
+
+typedef struct SeerCallbackObject {
+    SeerCallbackObjectVtbl* vtbl;
+    void* self;
+} SeerCallbackObject;
+
 typedef struct Seer {
-    TransmuteVm transmuteVm;
+    const SeerCallbackObject* callbackObject;
     size_t maxPlayerCount;
     uint8_t* readTempBuffer;
     size_t readTempBufferSize;
@@ -27,18 +42,17 @@ typedef struct Seer {
 } Seer;
 
 typedef struct SeerSetup {
-    struct ImprintAllocator* allocator;
+    ImprintAllocator* allocator;
     size_t maxStepOctetSizeForSingleParticipant;
     size_t maxPlayers;
     size_t maxTicksFromAuthoritative;
     Clog log;
 } SeerSetup;
 
-void seerInit(Seer* self, TransmuteVm transmuteVm, SeerSetup setup, TransmuteState state, StepId stepId);
+void seerInit(Seer* self, const SeerCallbackObject* callbackObject, SeerSetup setup, StepId stepId);
 void seerDestroy(Seer* self);
 int seerUpdate(Seer* self);
-void seerSetState(Seer* self, TransmuteState state, StepId stepId);
-TransmuteState seerGetState(const Seer* self, StepId* outStepId);
+void seerAuthoritativeGotNewState(Seer* self, StepId stepId);
 bool seerShouldAddPredictedStepThisTick(const Seer* self);
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId);
 int seerAddPredictedStepRaw(Seer* self, const uint8_t* combinedStep, size_t octetCount, StepId tickId);
