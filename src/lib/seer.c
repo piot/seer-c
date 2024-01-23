@@ -54,6 +54,30 @@ void seerAuthoritativeGotNewState(Seer* self, StepId stepId)
     self->callbackObject.vtbl->copyFromAuthoritativeFn(self->callbackObject.self, stepId);
 }
 
+static NimbleSerializeParticipantConnectState toConnectState(TransmuteParticipantInputType inputType)
+{
+    switch (inputType) {
+        case TransmuteParticipantInputTypeNormal:
+            return NimbleSerializeParticipantConnectStateNormal;
+        case TransmuteParticipantInputTypeNoInputInTime:
+            return NimbleSerializeParticipantConnectStateStepNotProvidedInTime;
+        case TransmuteParticipantInputTypeWaitingForReconnect:
+            return NimbleSerializeParticipantConnectStateStepWaitingForReconnect;
+    }
+}
+
+static TransmuteParticipantInputType fromConnectState(NimbleSerializeParticipantConnectState inputType)
+{
+    switch (inputType) {
+        case NimbleSerializeParticipantConnectStateNormal:
+            return TransmuteParticipantInputTypeNormal;
+        case NimbleSerializeParticipantConnectStateStepNotProvidedInTime:
+            return TransmuteParticipantInputTypeNoInputInTime;
+        case NimbleSerializeParticipantConnectStateStepWaitingForReconnect:
+            return TransmuteParticipantInputTypeWaitingForReconnect;
+    }
+}
+
 int seerUpdate(Seer* self)
 {
     // We don't want to predict too far in the future, for several reasons
@@ -62,11 +86,11 @@ int seerUpdate(Seer* self)
 
     while (true) {
         if (self->stepId >= self->maxPredictionTickId) {
-            // CLOG_C_INFO(&self->log,
-            //           "we can not predict further from the last authoritative state. The prediction will be too "
-            //         "costly to simulate or uncertainty will be too high"
-            //       "max: %04X actual: %04X maxDeltaTicks: %zu",
-            //     self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
+            CLOG_C_INFO(&self->log,
+                        "we can not predict further from the last authoritative state. The prediction will be too "
+                        "costly to simulate or uncertainty will be too high"
+                        "max: %04X actual: %04X maxDeltaTicks: %zu",
+                        self->maxPredictionTickId, self->stepId, self->maxPredictionTicksFromAuthoritative)
 
             self->callbackObject.vtbl->postPredictionTicksFn(self->callbackObject.self);
             return 1;
@@ -74,7 +98,8 @@ int seerUpdate(Seer* self)
 
         int infoIndex = nbsStepsGetIndexForStep(&self->predictedSteps, self->stepId);
         if (infoIndex < 0) {
-            CLOG_C_VERBOSE(&self->log, "stop predicting, since we don't have a predicted input for step %04X", self->stepId)
+            CLOG_C_VERBOSE(&self->log, "stop predicting, since we don't have a predicted input for step %04X",
+                           self->stepId)
             self->callbackObject.vtbl->postPredictionTicksFn(self->callbackObject.self);
             return 0;
         }
@@ -104,10 +129,14 @@ int seerUpdate(Seer* self)
         self->cachedTransmuteInput.participantCount = participants.participantCount;
         for (size_t i = 0U; i < participants.participantCount; ++i) {
             NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];
-            self->cachedTransmuteInput.participantInputs[i].participantId = participant->participantId;
-            self->cachedTransmuteInput.participantInputs[i].input = participant->payload;
-            self->cachedTransmuteInput.participantInputs[i].octetSize = participant->payloadCount;
-            self->cachedTransmuteInput.participantInputs[i].inputType = TransmuteParticipantInputTypeNormal;
+            if (participant->payload == 0 || participant->payloadCount == 0) {
+                // CLOG_C_ERROR(&self->log, "illegal participant payload")
+            }
+            TransmuteParticipantInput* cachedTarget = &self->cachedTransmuteInput.participantInputs[i];
+            cachedTarget->participantId = participant->participantId;
+            cachedTarget->input = participant->payload;
+            cachedTarget->octetSize = participant->payloadCount;
+            cachedTarget->inputType = fromConnectState(participant->connectState);
         }
         // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
@@ -122,18 +151,6 @@ bool seerShouldAddPredictedStepThisTick(const Seer* self)
            (self->stepId < self->maxPredictionTickId);
 }
 
-static NimbleSerializeParticipantConnectState toConnectState(TransmuteParticipantInputType inputType)
-{
-    switch (inputType) {
-        case TransmuteParticipantInputTypeNormal:
-            return NimbleSerializeParticipantConnectStateNormal;
-        case TransmuteParticipantInputTypeNoInputInTime:
-            return NimbleSerializeParticipantConnectStateStepNotProvidedInTime;
-        case TransmuteParticipantInputTypeWaitingForReconnect:
-            return NimbleSerializeParticipantConnectStateStepWaitingForReconnect;
-    }
-}
-
 int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
 {
     NimbleStepsOutSerializeLocalParticipants data;
@@ -143,10 +160,12 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
             CLOG_C_ERROR(&self->log, "illegal payload for predicted input")
             // return -2;
         }
-        data.participants[i].participantId = input->participantInputs[i].participantId;
-        data.participants[i].payload = input->participantInputs[i].input;
-        data.participants[i].payloadCount = input->participantInputs[i].octetSize;
-        data.participants[i].connectState = toConnectState(input->participantInputs[i].inputType);
+        const TransmuteParticipantInput* source = &input->participantInputs[i];
+        NimbleStepsOutSerializeLocalParticipant* target = &data.participants[i];
+        target->participantId = source->participantId;
+        target->payload = source->input;
+        target->payloadCount = source->octetSize;
+        target->connectState = toConnectState(source->inputType);
     }
 
     data.participantCount = input->participantCount;
