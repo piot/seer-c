@@ -90,7 +90,7 @@ void appSpecificSeerCopyFromAuthoritative(void* _self, StepId stepId)
     transmuteVmSetState(self->transmuteVm, self->mockAuthoritativeState);
 }
 
-void appSpecificSeerPredictTick(void* _self, const TransmuteInput* input)
+void appSpecificSeerPredictTick(void* _self, const TransmuteInput* input, StepId stepId)
 {
     AppSpecificCallback* self = (AppSpecificCallback*) _self;
     CLOG_INFO("prediction: tick()")
