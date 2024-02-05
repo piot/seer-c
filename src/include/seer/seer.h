@@ -14,7 +14,7 @@
 struct ImprintAllocator;
 
 typedef void (*SeerPredictionCopyFromAuthoritativeFn)(void* self, StepId tickId);
-typedef void (*SeerPredictionTickFn)(void* self, const TransmuteInput* input);
+typedef void (*SeerPredictionTickFn)(void* self, const TransmuteInput* input, StepId tickId);
 typedef void (*SeerPredictionPostPredictionTicksFn)(void* self);
 
 typedef struct SeerCallbackObjectVtbl {

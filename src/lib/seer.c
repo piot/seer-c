@@ -156,18 +156,6 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
     NimbleStepsOutSerializeLocalParticipants data;
 
     for (size_t i = 0; i < input->participantCount; ++i) {
-        if (input->participantInputs[i].inputType == TransmuteParticipantInputTypeNormal) {
-            if (input->participantInputs[i].input == 0 || input->participantInputs[i].octetSize == 0) {
-                CLOG_C_ERROR(&self->log, "illegal payload for predicted normal input")
-                // return -2;
-            }
-        } else if (input->participantInputs[i].inputType == TransmuteParticipantInputTypeWaitingForReconnect ||
-                   input->participantInputs[i].inputType == TransmuteParticipantInputTypeNoInputInTime) {
-            if (input->participantInputs[i].input != 0 || input->participantInputs[i].octetSize != 0) {
-                CLOG_C_ERROR(&self->log, "illegal payload for predicted empty input")
-                // return -2;
-            }
-        }
         const TransmuteParticipantInput* source = &input->participantInputs[i];
         NimbleStepsOutSerializeLocalParticipant* target = &data.participants[i];
         target->participantId = source->participantId;
