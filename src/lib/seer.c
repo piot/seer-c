@@ -140,7 +140,8 @@ int seerUpdate(Seer* self)
         }
         // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
-        self->callbackObject.vtbl->predictionTickFn(self->callbackObject.self, &self->cachedTransmuteInput);
+        self->callbackObject.vtbl->predictionTickFn(self->callbackObject.self, &self->cachedTransmuteInput,
+                                                    self->stepId);
         self->stepId++;
     }
 }
@@ -158,6 +159,14 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
     for (size_t i = 0; i < input->participantCount; ++i) {
         const TransmuteParticipantInput* source = &input->participantInputs[i];
         NimbleStepsOutSerializeLocalParticipant* target = &data.participants[i];
+        if (input->participantInputs[i].inputType == TransmuteParticipantInputTypeNormal) {
+            CLOG_ASSERT(input->participantInputs[i].input != 0 && input->participantInputs[i].octetSize != 0,
+                        "input and octetSize must be non-zero for normal steps")
+        } else {
+            CLOG_ASSERT(input->participantInputs[i].input == 0 && input->participantInputs[i].octetSize == 0,
+                        "input and octetSize must be zero for non-normal steps")
+        }
+
         target->participantId = source->participantId;
         target->payload = source->input;
         target->payloadCount = source->octetSize;
