@@ -138,8 +138,8 @@ int seerUpdate(Seer* self)
             cachedTarget->octetSize = participant->payloadCount;
             cachedTarget->inputType = fromConnectState(participant->connectState);
         }
-        // CLOG_C_INFO(&self->log, "seer tick! %08X", self->stepId)
 
+        CLOG_C_VERBOSE(&self->log, "predictionTickFn() %08X", self->stepId)
         self->callbackObject.vtbl->predictionTickFn(self->callbackObject.self, &self->cachedTransmuteInput,
                                                     self->stepId);
         self->stepId++;
