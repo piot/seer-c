@@ -115,6 +115,7 @@ int seerUpdate(Seer* self)
 
         nbsStepsInSerializeStepsForParticipantsFromOctets(&participants, self->readTempBuffer,
                                                           (size_t) payloadOctetCount);
+#if defined SEER_LOG_EXTRA_INFO
         CLOG_C_VERBOSE(&self->log, "read predicted step %08X octetCount: %d", self->stepId, payloadOctetCount)
         for (size_t i = 0; i < participants.participantCount; ++i) {
             CLOG_EXECUTE(NimbleStepsOutSerializeLocalParticipant* participant = &participants.participants[i];)
@@ -122,6 +123,7 @@ int seerUpdate(Seer* self)
                            participant->payloadCount)
         }
 
+#endif
         if (participants.participantCount > self->maxPlayerCount) {
             CLOG_C_SOFT_ERROR(&self->log, "Too many participants %zu", participants.participantCount)
             return -99;
