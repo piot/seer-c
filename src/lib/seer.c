@@ -54,27 +54,35 @@ void seerAuthoritativeGotNewState(Seer* self, StepId stepId)
     self->callbackObject.vtbl->copyFromAuthoritativeFn(self->callbackObject.self, stepId);
 }
 
-static NimbleSerializeParticipantConnectState toConnectState(TransmuteParticipantInputType inputType)
+static NimbleSerializeStepType toStepType(TransmuteParticipantInputType inputType)
 {
     switch (inputType) {
         case TransmuteParticipantInputTypeNormal:
-            return NimbleSerializeParticipantConnectStateNormal;
+            return NimbleSerializeStepTypeNormal;
         case TransmuteParticipantInputTypeNoInputInTime:
-            return NimbleSerializeParticipantConnectStateStepNotProvidedInTime;
-        case TransmuteParticipantInputTypeWaitingForReconnect:
-            return NimbleSerializeParticipantConnectStateStepWaitingForReconnect;
+            return NimbleSerializeStepTypeStepNotProvidedInTime;
+        case TransmuteParticipantInputTypeWaitingForReJoin:
+            return NimbleSerializeStepTypeWaitingForReJoin;
+        case TransmuteParticipantInputTypeJoined:
+            return NimbleSerializeStepTypeJoined;
+        case TransmuteParticipantInputTypeLeft:
+            return NimbleSerializeStepTypeLeft;
     }
 }
 
-static TransmuteParticipantInputType fromConnectState(NimbleSerializeParticipantConnectState inputType)
+static TransmuteParticipantInputType fromStepType(NimbleSerializeStepType inputType)
 {
     switch (inputType) {
-        case NimbleSerializeParticipantConnectStateNormal:
+        case NimbleSerializeStepTypeNormal:
             return TransmuteParticipantInputTypeNormal;
-        case NimbleSerializeParticipantConnectStateStepNotProvidedInTime:
+        case NimbleSerializeStepTypeStepNotProvidedInTime:
             return TransmuteParticipantInputTypeNoInputInTime;
-        case NimbleSerializeParticipantConnectStateStepWaitingForReconnect:
-            return TransmuteParticipantInputTypeWaitingForReconnect;
+        case NimbleSerializeStepTypeWaitingForReJoin:
+            return TransmuteParticipantInputTypeWaitingForReJoin;
+        case NimbleSerializeStepTypeJoined:
+            return TransmuteParticipantInputTypeJoined;
+        case NimbleSerializeStepTypeLeft:
+            return TransmuteParticipantInputTypeLeft;
     }
 }
 
@@ -136,9 +144,10 @@ int seerUpdate(Seer* self)
             }
             TransmuteParticipantInput* cachedTarget = &self->cachedTransmuteInput.participantInputs[i];
             cachedTarget->participantId = participant->participantId;
+            cachedTarget->localPartyId = participant->localPartyId;
             cachedTarget->input = participant->payload;
             cachedTarget->octetSize = participant->payloadCount;
-            cachedTarget->inputType = fromConnectState(participant->connectState);
+            cachedTarget->inputType = fromStepType(participant->stepType);
         }
 
         CLOG_C_VERBOSE(&self->log, "predictionTickFn() %08X", self->stepId)
@@ -170,9 +179,10 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
         }
 
         target->participantId = source->participantId;
+        target->localPartyId = 0;
         target->payload = source->input;
         target->payloadCount = source->octetSize;
-        target->connectState = toConnectState(source->inputType);
+        target->stepType = toStepType(source->inputType);
     }
 
     data.participantCount = input->participantCount;
