@@ -187,7 +187,7 @@ int seerAddPredictedStep(Seer* self, const TransmuteInput* input, StepId tickId)
 
     data.participantCount = input->participantCount;
 
-    ssize_t octetCount = nbsStepsOutSerializeStep(&data, self->readTempBuffer, self->readTempBufferSize);
+    ssize_t octetCount = nbsStepsOutSerializeCombinedStep(&data, self->readTempBuffer, self->readTempBufferSize);
     if (octetCount < 0) {
         CLOG_ERROR("seerAddPredictedSteps: could not serialize")
         // return octetCount;
