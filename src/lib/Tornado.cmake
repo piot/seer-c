@@ -69,6 +69,9 @@ function(set_tornado targetName)
                                                # for std c99
               -Wno-switch-enum # if there is a explicit default case, then it
               # should not be reported as an error
+
+              -Wno-switch-default # new clang is strange, even if all values are covered in a
+                                  # switch, it still complains
               ${sanitizers})
   elseif(COMPILER_GCC)
     target_compile_options(
