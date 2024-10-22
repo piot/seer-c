@@ -6,13 +6,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Install Emscripten SDK
-        uses: mymindstorm/setup-emsdk@v11
+        uses: mymindstorm/setup-emsdk@v14
 
       - name: Check Emscripten version
         run: emcc -v
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: make clang-14 the default
         run:
@@ -20,14 +20,14 @@ jobs:
           100
 
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.14
+        uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.26.x'
+          cmake-version: '3.30.x'
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.23'
 
       - name: deps fetch dependencies
         run: go run github.com/piot/deps/src/deps@main fetch
@@ -38,8 +38,8 @@ jobs:
       - name: build
         run: cmake --build . --clean-first
 
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4
         with:
-          name: Seer Emscripten Library
+          name: Nimble Seer Emscripten Library
           path: |
             src/lib/libseer.a
